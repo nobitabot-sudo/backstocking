@@ -1,19 +1,57 @@
-import streamlit as st
 import json
 import pandas as pd
 from pathlib import Path
-from src.agent import ReturnsAgent
 
-# Get absolute path of the directory where app.py is located
-BASE_DIR = Path(__file__).parent.resolve()
+class ReturnsAgent:
+    def __init__(self, catalog_path=None):
+        if catalog_path is None:
+            catalog_path = Path(__file__).parent.parent.resolve() / "data" / "catalog.json"
+        
+        with open(catalog_path, "r", encoding="utf-8") as f:
+            self.catalog = json.load(f)
 
-st.set_page_config(page_title="Gadgetbay AI - Returns Agent", layout="wide")
+    def evaluate_returns_batch(self, returns_data):
+        df = pd.DataFrame(returns_data)
+        if df.empty:
+            return None
 
-# Setup Agent with correct path
-agent = ReturnsAgent(catalog_path=BASE_DIR / "data/catalog.json")
+        sku = df["sku"].iloc[0]
+        batch_id = df["supplier_batch"].iloc[0]
+        total_units = len(df)
 
-# Read returns.json with absolute path
-returns_file_path = BASE_DIR / "data/returns.json"
+        prod = self.catalog["products"][sku]
+        vendor = self.catalog["vendor_terms"][sku]
+        refurb = self.catalog["refurbishment"][prod["category"]]
 
-with open(returns_file_path, "r") as f:
-    sample_returns = json.load(f)
+        # Financial recovery per route
+        rtv_recovery = prod["cost_price"] * vendor["credit_pct"]
+        refurb_recovery = (prod["selling_price"] * refurb["resale_pct"]) - refurb["cost"]
+        liquidation_recovery = prod["cost_price"] * self.catalog["liquidation"]["B"]
+
+        # Batch Splitting Logic (Window checking)
+        rtv_units = df[df["days_since_purchase"] <= vendor["window_days"]]
+        rtv_count = len(rtv_units)
+        refurb_count = total_units - rtv_count
+
+        total_net_recovery = (rtv_count * rtv_recovery) + (refurb_count * refurb_recovery)
+
+        # Quality Anomaly Detection
+        defect_count = (df["reason_code"] == "Defective Sound").sum()
+        defect_rate = defect_count / total_units
+        quality_alert = defect_rate >= 0.50
+
+        return {
+            "sku": sku,
+            "product_name": prod["name"],
+            "batch_id": batch_id,
+            "total_units": total_units,
+            "rtv_count": rtv_count,
+            "rtv_unit_val": rtv_recovery,
+            "refurb_count": refurb_count,
+            "refurb_unit_val": refurb_recovery,
+            "liquidation_unit_val": liquidation_recovery,
+            "total_recovery": total_net_recovery,
+            "quality_alert": quality_alert,
+            "defect_rate": defect_rate,
+            "existing_stock_days": prod["current_stock"] / prod["avg_daily_demand"]
+        }
