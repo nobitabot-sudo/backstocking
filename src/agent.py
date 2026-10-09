@@ -1,9 +1,13 @@
 import json
 import pandas as pd
+from pathlib import Path
 
 class ReturnsAgent:
-    def __init__(self, catalog_path="data/catalog.json"):
-        with open(catalog_path, "r") as f:
+    def __init__(self, catalog_path=None):
+        if catalog_path is None:
+            catalog_path = Path(__file__).parent.parent.resolve() / "data" / "catalog.json"
+        
+        with open(catalog_path, "r", encoding="utf-8") as f:
             self.catalog = json.load(f)
 
     def evaluate_returns_batch(self, returns_data):
@@ -24,7 +28,7 @@ class ReturnsAgent:
         refurb_recovery = (prod["selling_price"] * refurb["resale_pct"]) - refurb["cost"]
         liquidation_recovery = prod["cost_price"] * self.catalog["liquidation"]["B"]
 
-        # Batch Splitting Logic
+        # Batch Splitting Logic (Window checking)
         rtv_units = df[df["days_since_purchase"] <= vendor["window_days"]]
         rtv_count = len(rtv_units)
         refurb_count = total_units - rtv_count
