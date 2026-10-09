@@ -1,1 +1,30 @@
-
+{
+  "products": {
+    "SKU-HEADPHONE-01": {
+      "name": "Wireless Noise-Canceling Headphones",
+      "category": "Electronics",
+      "cost_price": 1400,
+      "selling_price": 2500,
+      "avg_daily_demand": 1.0,
+      "current_stock": 60
+    }
+  },
+  "vendor_terms": {
+    "SKU-HEADPHONE-01": {
+      "rtv_allowed": true,
+      "credit_pct": 0.60,
+      "window_days": 30
+    }
+  },
+  "refurbishment": {
+    "Electronics": {
+      "cost": 250,
+      "days_required": 5,
+      "resale_pct": 0.75
+    }
+  },
+  "liquidation": {
+    "B": 0.35,
+    "C": 0.20
+  }
+}
