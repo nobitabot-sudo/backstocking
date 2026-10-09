@@ -1,0 +1,11 @@
+unit_id,batch,fault,days_left_in_window
+HBP-001,HB-09,Microphone issue,14
+HBP-002,HB-09,Microphone issue,12
+HBP-003,HB-09,Microphone issue,10
+HBP-004,HB-09,Microphone issue,8
+HBP-005,HB-09,Microphone issue,5
+HBP-006,HB-09,Microphone issue,2
+HBP-007,HB-01,Bluetooth pairing,0
+HBP-008,HB-02,Battery drain,0
+HBP-009,HB-03,Physical scratch,0
+HBP-010,HB-01,Audio distortion,0
