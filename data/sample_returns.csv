@@ -1,0 +1,5 @@
+return_id,sku,supplier_batch,reason_code,grade,days_since_purchase
+RET-201,SKU-HEADPHONE-01,HB-09,Defective Sound,B,10
+RET-202,SKU-HEADPHONE-01,HB-09,Defective Sound,B,15
+RET-203,SKU-HEADPHONE-01,HB-09,Defective Sound,B,40
+RET-204,SKU-HEADPHONE-01,HB-09,Defective Sound,B,45
