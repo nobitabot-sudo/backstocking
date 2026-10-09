@@ -2,7 +2,6 @@ import datetime as dt
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-
 from src.recovery import (REQUIRED, Params, claim_text, fault_alert, per_unit,
                           plan, sample_df, validate)
 
@@ -17,6 +16,7 @@ sb.header("Data")
 up = sb.file_uploader("Upload returns CSV (optional)", type=["csv"])
 sb.download_button("Download CSV template", sample_df().to_csv(index=False),
                    "returns_template.csv", "text/csv")
+
 if up is not None:
     df = pd.read_csv(up)
     missing = validate(df)
@@ -38,6 +38,7 @@ with sb.expander("What-if inputs (challenge defaults)"):
         liquidation_pct=st.slider("Liquidation, % of cost", 0, 100, 35) / 100,
         stock_days=st.number_input("New stock cover (days)", value=60, step=5),
     )
+
 alert_pct = sb.slider("Alert when one batch+fault share is at least (%)", 10, 100, 50)
 urgent_days = sb.slider("Mark as urgent when days left is at most", 1, 14, 3)
 
@@ -60,7 +61,8 @@ with t1:
         f"= ₹{pl['sup_total']:,.0f}\n\n"
         f"**{pl['n_rest']} units → {pl['rest_route'].lower()}** at ₹{pl['rest_val']:,.0f} each "
         f"= ₹{pl['rest_total']:,.0f}\n\n"
-        f"**Estimated total: ₹{pl['total']:,.0f}**")
+        f"**Estimated total: ₹{pl['total']:,.0f}**"
+    )
     with st.expander("Why this plan?", expanded=True):
         st.write("- Units still inside the return window can earn supplier credit.")
         st.write("- The other units are refurbished (or liquidated if that pays more).")
@@ -89,7 +91,6 @@ with t3:
               int((radar["days_left_in_window"] <= urgent_days).sum()))
     st.dataframe(radar[["unit_id", "batch", "fault", "days_left_in_window", "status"]],
                  hide_index=True, use_container_width=True)
-    st.caption("Days left are entered by the user. The sample values are illustrative.")
 
 with t4:
     st.subheader("Repeated-fault check")
@@ -97,8 +98,7 @@ with t4:
         st.error(f"🚨 {al['share']:.0%} of returns ({al['count']} of {pl['n']}) share the fault "
                  f"“{al['fault']}” from batch {al['batch']}. Suggested action: flag the batch "
                  "for supplier review.")
-    else:
-        st.success("No repeated fault above the alert level.")
+    else:        st.success("No repeated fault above the alert level.")
     st.download_button("Download supplier claim draft", claim_text(df, al, p),
                        "supplier_claim_draft.txt")
 
