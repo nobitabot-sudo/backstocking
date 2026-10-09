@@ -1,15 +1,15 @@
 import streamlit as st
 import json
 import pandas as pd
+import plotly.express as px
 from pathlib import Path
 from src.agent import ReturnsAgent
 
-# Path Resolution Fix (Streamlit Cloud FileNotFoundError prevent karne ke liye)
+# Path Resolution Fix
 BASE_DIR = Path(__file__).parent.resolve()
 
 st.set_page_config(page_title="Gadgetbay AI - Returns Agent", layout="wide")
 
-# Styling & Title
 st.title("📦 Gadgetbay AI — Returns & Recovery Control Tower")
 st.caption("Agentic Decision Engine: Observe ➔ Reason ➔ Evaluate ➔ Decide ➔ Act (Cypher 2026)")
 
@@ -17,21 +17,29 @@ st.caption("Agentic Decision Engine: Observe ➔ Reason ➔ Evaluate ➔ Decide 
 catalog_file = BASE_DIR / "data" / "catalog.json"
 agent = ReturnsAgent(catalog_path=catalog_file)
 
-# Load Returns Data
-returns_file = BASE_DIR / "data" / "returns.json"
-try:
+# Sidebar Controls
+st.sidebar.header("🕹️ Agent Controls & Data Input")
+
+# Feature 1: CSV Upload for Custom Test Data
+uploaded_file = st.sidebar.file_uploader("Upload Custom Returns CSV (Optional)", type=["csv"])
+
+if uploaded_file is not None:
+    try:
+        sample_returns = pd.read_csv(uploaded_file).to_dict(orient="records")
+        st.sidebar.success("Custom CSV Loaded Successfully!")
+    except Exception as e:
+        st.sidebar.error(f"Error reading CSV: {e}")
+        st.stop()
+else:
+    # Default JSON load
+    returns_file = BASE_DIR / "data" / "returns.json"
     with open(returns_file, "r", encoding="utf-8") as f:
         sample_returns = json.load(f)
-except Exception as e:
-    st.error(f"Error loading returns data file from {returns_file}: {e}")
-    st.stop()
 
-# Sidebar Control
-st.sidebar.header("Agent Controls")
-if st.sidebar.button("Run Intelligence Engine", type="primary"):
+run_engine = st.sidebar.button("Run Intelligence Engine", type="primary")
+
+if run_engine or st.session_state.get("ran", True):
     st.session_state["ran"] = True
-
-if st.session_state.get("ran", True):
     decision = agent.evaluate_returns_batch(sample_returns)
 
     # Top Metric Summary Cards
@@ -43,32 +51,48 @@ if st.session_state.get("ran", True):
 
     st.markdown("---")
 
-    # Agent Recommendation Section
-    st.subheader("🤖 Recommended Strategic Actions")
-    
-    col_a, col_b = st.columns(2)
+    # Recommendation and Financial Visuals
+    col_a, col_b = st.columns([1, 1])
     
     with col_a:
-        st.write("### 🔀 Batch Split Strategy")
+        st.subheader("🤖 Recommended Strategic Actions")
         st.info(f"""
         * **Route 1 (Return to Vendor):** Dispatch **{decision['rtv_count']} units** back to supplier for 60% credit (**₹{decision['rtv_unit_val']:,.0f}** / unit).
         * **Route 2 (Refurbish):** Refurbish remaining **{decision['refurb_count']} units** at ₹250 cost for resale (**₹{decision['refurb_unit_val']:,.0f}** net / unit).
         """)
 
-    with col_b:
-        st.write("### 🚨 Supplier Quality Insight")
         if decision["quality_alert"]:
             st.error(f"""
-            **Defect Alert on Batch {decision['batch_id']}**
+            🚨 **Supplier Quality Alert (Batch {decision['batch_id']})**
             * Defect Rate: **{decision['defect_rate']*100:.0f}%** for 'Defective Sound'.
             * **Recommendation:** Block future orders from Batch {decision['batch_id']} & raise vendor quality claim.
             """)
         else:
             st.success("No abnormal supplier batch defect rates detected.")
 
+    with col_b:
+        st.subheader("📊 Financial Recovery Distribution")
+        # Feature 2: Interactive Plotly Chart
+        chart_data = pd.DataFrame({
+            "Route": ["Return To Vendor (RTV)", "Refurbish & Resell"],
+            "Recovery Amount (₹)": [
+                decision['rtv_count'] * decision['rtv_unit_val'],
+                decision['refurb_count'] * decision['refurb_unit_val']
+            ]
+        })
+        fig = px.bar(
+            chart_data, 
+            x="Route", 
+            y="Recovery Amount (₹)", 
+            color="Route",
+            text_auto='.2s',
+            title="Batch Recovery Value per Route"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
     st.markdown("---")
 
-    # Human Approval Gate (Mandatory Agentic Pattern)
+    # Human Approval Gate
     st.subheader("⚡ Human Approval Gate")
     st.caption("No action is executed without explicit human authorization.")
 
