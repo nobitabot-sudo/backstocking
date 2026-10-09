@@ -1,1 +1,18 @@
-
+[
+  {
+    "return_id": "RET-101",
+    "sku": "SKU-HEADPHONE-01",
+    "supplier_batch": "HB-09",
+    "reason_code": "Defective Sound",
+    "grade": "B",
+    "days_since_purchase": 12
+  },
+  {
+    "return_id": "RET-102",
+    "sku": "SKU-HEADPHONE-01",
+    "supplier_batch": "HB-09",
+    "reason_code": "Defective Sound",
+    "grade": "B",
+    "days_since_purchase": 35
+  }
+]
