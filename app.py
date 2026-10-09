@@ -1,57 +1,81 @@
+import streamlit as st
 import json
 import pandas as pd
 from pathlib import Path
+from src.agent import ReturnsAgent
 
-class ReturnsAgent:
-    def __init__(self, catalog_path=None):
-        if catalog_path is None:
-            catalog_path = Path(__file__).parent.parent.resolve() / "data" / "catalog.json"
-        
-        with open(catalog_path, "r", encoding="utf-8") as f:
-            self.catalog = json.load(f)
+# Path Resolution Fix (Streamlit Cloud FileNotFoundError prevent karne ke liye)
+BASE_DIR = Path(__file__).parent.resolve()
 
-    def evaluate_returns_batch(self, returns_data):
-        df = pd.DataFrame(returns_data)
-        if df.empty:
-            return None
+st.set_page_config(page_title="Gadgetbay AI - Returns Agent", layout="wide")
 
-        sku = df["sku"].iloc[0]
-        batch_id = df["supplier_batch"].iloc[0]
-        total_units = len(df)
+# Styling & Title
+st.title("📦 Gadgetbay AI — Returns & Recovery Control Tower")
+st.caption("Agentic Decision Engine: Observe ➔ Reason ➔ Evaluate ➔ Decide ➔ Act (Cypher 2026)")
 
-        prod = self.catalog["products"][sku]
-        vendor = self.catalog["vendor_terms"][sku]
-        refurb = self.catalog["refurbishment"][prod["category"]]
+# Initialize Agent
+catalog_file = BASE_DIR / "data" / "catalog.json"
+agent = ReturnsAgent(catalog_path=catalog_file)
 
-        # Financial recovery per route
-        rtv_recovery = prod["cost_price"] * vendor["credit_pct"]
-        refurb_recovery = (prod["selling_price"] * refurb["resale_pct"]) - refurb["cost"]
-        liquidation_recovery = prod["cost_price"] * self.catalog["liquidation"]["B"]
+# Load Returns Data
+returns_file = BASE_DIR / "data" / "returns.json"
+try:
+    with open(returns_file, "r", encoding="utf-8") as f:
+        sample_returns = json.load(f)
+except Exception as e:
+    st.error(f"Error loading returns data file from {returns_file}: {e}")
+    st.stop()
 
-        # Batch Splitting Logic (Window checking)
-        rtv_units = df[df["days_since_purchase"] <= vendor["window_days"]]
-        rtv_count = len(rtv_units)
-        refurb_count = total_units - rtv_count
+# Sidebar Control
+st.sidebar.header("Agent Controls")
+if st.sidebar.button("Run Intelligence Engine", type="primary"):
+    st.session_state["ran"] = True
 
-        total_net_recovery = (rtv_count * rtv_recovery) + (refurb_count * refurb_recovery)
+if st.session_state.get("ran", True):
+    decision = agent.evaluate_returns_batch(sample_returns)
 
-        # Quality Anomaly Detection
-        defect_count = (df["reason_code"] == "Defective Sound").sum()
-        defect_rate = defect_count / total_units
-        quality_alert = defect_rate >= 0.50
+    # Top Metric Summary Cards
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Returns Analyzed", f"{decision['total_units']} Units")
+    c2.metric("Projected Net Recovery", f"₹{decision['total_recovery']:,.2f}")
+    c3.metric("RTV Eligible Units", f"{decision['rtv_count']} / {decision['total_units']}")
+    c4.metric("Existing Inventory Cover", f"{decision['existing_stock_days']:.0f} Days")
 
-        return {
-            "sku": sku,
-            "product_name": prod["name"],
-            "batch_id": batch_id,
-            "total_units": total_units,
-            "rtv_count": rtv_count,
-            "rtv_unit_val": rtv_recovery,
-            "refurb_count": refurb_count,
-            "refurb_unit_val": refurb_recovery,
-            "liquidation_unit_val": liquidation_recovery,
-            "total_recovery": total_net_recovery,
-            "quality_alert": quality_alert,
-            "defect_rate": defect_rate,
-            "existing_stock_days": prod["current_stock"] / prod["avg_daily_demand"]
-        }
+    st.markdown("---")
+
+    # Agent Recommendation Section
+    st.subheader("🤖 Recommended Strategic Actions")
+    
+    col_a, col_b = st.columns(2)
+    
+    with col_a:
+        st.write("### 🔀 Batch Split Strategy")
+        st.info(f"""
+        * **Route 1 (Return to Vendor):** Dispatch **{decision['rtv_count']} units** back to supplier for 60% credit (**₹{decision['rtv_unit_val']:,.0f}** / unit).
+        * **Route 2 (Refurbish):** Refurbish remaining **{decision['refurb_count']} units** at ₹250 cost for resale (**₹{decision['refurb_unit_val']:,.0f}** net / unit).
+        """)
+
+    with col_b:
+        st.write("### 🚨 Supplier Quality Insight")
+        if decision["quality_alert"]:
+            st.error(f"""
+            **Defect Alert on Batch {decision['batch_id']}**
+            * Defect Rate: **{decision['defect_rate']*100:.0f}%** for 'Defective Sound'.
+            * **Recommendation:** Block future orders from Batch {decision['batch_id']} & raise vendor quality claim.
+            """)
+        else:
+            st.success("No abnormal supplier batch defect rates detected.")
+
+    st.markdown("---")
+
+    # Human Approval Gate (Mandatory Agentic Pattern)
+    st.subheader("⚡ Human Approval Gate")
+    st.caption("No action is executed without explicit human authorization.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Approve Batch Split & Raise Claim", type="primary"):
+            st.success(f"✅ Approved! Created RTV Order #RTV-9921 ({decision['rtv_count']} units) & Refurb Task #RF-1042.")
+    with col2:
+        if st.button("Reject / Manual Override"):
+            st.warning("⚠️ Action rejected. Decision routed for manual review.")
